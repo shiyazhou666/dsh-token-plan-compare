@@ -18,13 +18,9 @@ export const name = 'token-plan-compare';
 export const inject = ['tools'];
 
 export const Config = z.object({
-  /** 是否启用插件 */
   enabled: z.boolean().default(true),
-  /** 默认月预算（元） */
   defaultBudget: z.number().default(100),
-  /** 默认输入 token 占比 */
   defaultInputRatio: z.number().default(0.7),
-  /** 默认地区 */
   defaultRegion: z.string().default('china'),
 });
 
@@ -35,6 +31,12 @@ export type TokenPlanCompareConfig = {
   defaultRegion: string;
 };
 
+/** 通用 output.render：把字符串返回值渲染为文本内容块 */
+const textOutput = {
+  schema: { type: 'string' },
+  render: (_args: unknown, value: string) => [{ type: 'text', text: value }],
+};
+
 export function apply(ctx: Context, config: TokenPlanCompareConfig) {
   if (!config.enabled) return;
 
@@ -43,98 +45,55 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
     defineTool({
       name: 'token_plan_compare',
       description:
-        '对比各家大模型 API 的 token 套餐性价比。当用户询问"哪个大模型便宜"、"token 价格对比"、"API 性价比"、"买哪个套餐划算"、"月预算X元用什么模型"时使用。返回按性价比排序的套餐列表，包含有效单价、每元可买token数、推荐理由。',
+        '对比各家大模型 API 的 token 套餐性价比。当用户询问"哪个大模型便宜"、"token 价格对比"、"API 性价比"、"买哪个套餐划算"、"月预算X元用什么模型"时使用。返回按性价比排序的套餐列表。',
       parameters: {
-        type: 'object',
-        properties: {
-          monthly_budget: {
-            type: 'number',
-            description: '月预算（元人民币），用于计算每月可购买的 token 量',
-            default: 100,
-          },
-          use_case: {
-            type: 'string',
-            enum: ['code', 'writing', 'chat', 'long-context', 'reasoning'],
-            description:
-              '主要使用场景：code=写代码，writing=写作/文案，chat=日常对话，long-context=长文本处理，reasoning=深度推理',
-          },
-          input_ratio: {
-            type: 'number',
-            description: '输入 token 占比（0-1），例如 0.7 表示 70% 是输入、30% 是输出',
-            default: 0.7,
-            minimum: 0,
-            maximum: 1,
-          },
-          region: {
-            type: 'string',
-            enum: ['china', 'global'],
-            description: '地区：china=仅国内厂商，global=包含海外厂商（美元折算）',
-            default: 'china',
-          },
-          providers: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '指定厂商名称列表，如 ["DeepSeek","通义千问"]，不填则全部',
-          },
-          cache_hit_rate: {
-            type: 'number',
-            description: '缓存命中率（0-1），开启后会用缓存命中价计算输入成本',
-            default: 0,
-            minimum: 0,
-            maximum: 1,
-          },
-          min_capability: {
-            type: 'number',
-            description: '最低能力评分（0-10），过滤掉能力太低的模型',
-            default: 0,
-            minimum: 0,
-            maximum: 10,
-          },
-          top_n: {
-            type: 'number',
-            description: '返回前 N 名，默认 10',
-            default: 10,
-          },
+        monthly_budget: {
+          type: 'number',
+          description: '月预算（元人民币），默认100',
+        },
+        use_case: {
+          type: 'string',
+          description: '使用场景：code/writing/chat/long-context/reasoning',
+        },
+        input_ratio: {
+          type: 'number',
+          description: '输入token占比0-1，默认0.7',
+        },
+        region: {
+          type: 'string',
+          description: '地区：china/global，默认china',
+        },
+        providers: {
+          type: 'array',
+          description: '指定厂商列表，不填则全部',
+        },
+        cache_hit_rate: {
+          type: 'number',
+          description: '缓存命中率0-1，默认0',
+        },
+        min_capability: {
+          type: 'number',
+          description: '最低能力评分0-10，默认0',
+        },
+        top_n: {
+          type: 'number',
+          description: '返回前N名，默认10',
         },
       },
+      output: textOutput,
       async execute(args: any) {
         const options: CompareOptions = {
-          monthlyBudget: (args.monthly_budget as number) ?? config.defaultBudget,
-          useCase: args.use_case as CompareOptions['useCase'],
-          inputRatio: (args.input_ratio as number) ?? config.defaultInputRatio,
-          region: ((args.region as string) ?? config.defaultRegion) as CompareOptions['region'],
-          providers: args.providers as string[] | undefined,
-          cacheHitRate: (args.cache_hit_rate as number) ?? 0,
-          minCapability: (args.min_capability as number) ?? 0,
+          monthlyBudget: args.monthly_budget ?? config.defaultBudget,
+          useCase: args.use_case,
+          inputRatio: args.input_ratio ?? config.defaultInputRatio,
+          region: (args.region ?? config.defaultRegion) as 'china' | 'global',
+          providers: args.providers,
+          cacheHitRate: args.cache_hit_rate ?? 0,
+          minCapability: args.min_capability ?? 0,
         };
-
         const results = comparePlans(TOKEN_PLANS, options);
-        const topN = (args.top_n as number) ?? 10;
-        const text = formatCompareResults(results, topN);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text,
-            },
-          ],
-          data: {
-            total_matched: results.length,
-            top_results: results.slice(0, topN).map((r) => ({
-              provider: r.plan.provider,
-              model: r.plan.model,
-              value_score: r.valueScore,
-              effective_price: Number(r.effectivePrice.toFixed(2)),
-              tokens_per_yuan: Number(r.tokensPerYuan.toFixed(2)),
-              monthly_tokens_million: Number(r.monthlyTokens.toFixed(1)),
-              capability_score: r.plan.capabilityScore,
-              reason: r.reason,
-              url: r.plan.url,
-            })),
-            data_updated_at: DATA_UPDATED_AT,
-          },
-        };
+        const topN = args.top_n ?? 10;
+        return formatCompareResults(results, topN);
       },
     }),
   );
@@ -144,34 +103,26 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
     defineTool({
       name: 'token_plan_recommend',
       description:
-        '根据使用场景和预算直接推荐最划算的大模型套餐。当用户说"我写代码用什么模型好"、"长文本处理选哪个"、"预算X元推荐一个API"时使用。返回最佳推荐和备选方案。',
+        '根据使用场景和预算直接推荐最划算的大模型套餐。当用户说"写代码用什么模型"、"长文本选哪个"、"预算X元推荐API"时使用。',
       parameters: {
-        type: 'object',
-        properties: {
-          use_case: {
-            type: 'string',
-            enum: ['code', 'writing', 'chat', 'long-context', 'reasoning'],
-            description: '使用场景',
-            default: 'chat',
-          },
-          monthly_budget: {
-            type: 'number',
-            description: '月预算（元）',
-            default: 100,
-          },
-          region: {
-            type: 'string',
-            enum: ['china', 'global'],
-            description: '地区',
-            default: 'china',
-          },
+        use_case: {
+          type: 'string',
+          description: '使用场景：code/writing/chat/long-context/reasoning',
         },
-        required: ['use_case'],
+        monthly_budget: {
+          type: 'number',
+          description: '月预算（元），默认100',
+        },
+        region: {
+          type: 'string',
+          description: '地区：china/global，默认china',
+        },
       },
+      output: textOutput,
       async execute(args: any) {
         const useCase = args.use_case as 'code' | 'writing' | 'chat' | 'long-context' | 'reasoning';
-        const budget = (args.monthly_budget as number) ?? config.defaultBudget;
-        const region = (args.region as 'china' | 'global') ?? config.defaultRegion;
+        const budget = args.monthly_budget ?? config.defaultBudget;
+        const region = (args.region ?? config.defaultRegion) as 'china' | 'global';
 
         const filtered = TOKEN_PLANS.filter((p) => p.region === region || region === 'global');
         const { best, alternatives } = recommendByUseCase(filtered, useCase, budget);
@@ -193,25 +144,7 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
         });
         lines.push('');
         lines.push(`数据更新于 ${DATA_UPDATED_AT}，以官方价格为准。`);
-
-        return {
-          content: [{ type: 'text', text: lines.join('\n') }],
-          data: {
-            best: {
-              provider: best.plan.provider,
-              model: best.plan.model,
-              value_score: best.valueScore,
-              effective_price: Number(best.effectivePrice.toFixed(2)),
-              url: best.plan.url,
-            },
-            alternatives: alternatives.map((a) => ({
-              provider: a.plan.provider,
-              model: a.plan.model,
-              value_score: a.valueScore,
-              effective_price: Number(a.effectivePrice.toFixed(2)),
-            })),
-          },
-        };
+        return lines.join('\n');
       },
     }),
   );
@@ -221,22 +154,18 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
     defineTool({
       name: 'token_plan_list',
       description:
-        '列出数据库中所有大模型 token 套餐的基本信息（厂商、模型、输入输出价格、上下文窗口）。当用户想了解"有哪些大模型API"、"支持哪些厂商"时使用。',
+        '列出数据库中所有大模型 token 套餐的基本信息。当用户想了解"有哪些大模型API"、"支持哪些厂商"时使用。',
       parameters: {
-        type: 'object',
-        properties: {
-          region: {
-            type: 'string',
-            enum: ['china', 'global', 'all'],
-            description: '地区过滤',
-            default: 'all',
-          },
-          provider: {
-            type: 'string',
-            description: '指定厂商名称，如 "DeepSeek"',
-          },
+        region: {
+          type: 'string',
+          description: '地区过滤：china/global/all，默认all',
+        },
+        provider: {
+          type: 'string',
+          description: '指定厂商名称，如 "DeepSeek"',
         },
       },
+      output: textOutput,
       async execute(args: any) {
         const region = args.region as string;
         const provider = args.provider as string | undefined;
@@ -253,7 +182,6 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
         lines.push(`=== 大模型 API 套餐列表（共 ${plans.length} 个）===`);
         lines.push('');
 
-        // 按厂商分组
         const byProvider = new Map<string, typeof plans>();
         plans.forEach((p) => {
           if (!byProvider.has(p.provider)) byProvider.set(p.provider, []);
@@ -271,23 +199,7 @@ export function apply(ctx: Context, config: TokenPlanCompareConfig) {
         }
 
         lines.push(`数据更新于 ${DATA_UPDATED_AT}，以官方价格为准。`);
-
-        return {
-          content: [{ type: 'text', text: lines.join('\n') }],
-          data: {
-            total: plans.length,
-            providers: Array.from(byProvider.keys()),
-            plans: plans.map((p) => ({
-              provider: p.provider,
-              model: p.model,
-              input_price: p.inputPrice,
-              output_price: p.outputPrice,
-              cache_price: p.cachePrice,
-              context_window: p.contextWindow,
-              url: p.url,
-            })),
-          },
-        };
+        return lines.join('\n');
       },
     }),
   );
