@@ -17,6 +17,23 @@ declare module '@deepseek-ai/cordis' {
   export const Context: Context;
 }
 
+declare module '@deepseek-ai/cordis/client' {
+  export interface Context {
+    webview: {
+      registerSidebarTab(config: {
+        id: string;
+        label: string;
+        render(el: HTMLElement): void;
+      }): void;
+    };
+    events?: {
+      on(event: string, handler: (...args: unknown[]) => void): void;
+      emit(event: string, ...args: unknown[]): void;
+    };
+  }
+  export const Context: Context;
+}
+
 declare module '@deepseek-ai/dsh-tools' {
   export function defineTool(config: any): any;
 }

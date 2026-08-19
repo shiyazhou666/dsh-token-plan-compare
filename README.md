@@ -4,6 +4,15 @@
 
 ## 功能
 
+### 可视化侧边栏 UI（Web 端）
+
+安装后在 DSH Web UI 侧边栏会出现「**Token 性价比**」标签页，可直接交互：
+- 调节月预算、使用场景、输入/输出占比、缓存命中率等参数
+- 实时展示性价比排名表格（前50名）
+- 显示最佳推荐、有效单价、每元可买 token 数、能力评分等
+
+### Agent 工具
+
 注册 3 个 Agent 可调用的工具：
 
 | 工具名 | 用途 |
@@ -80,16 +89,21 @@ dsh --profile web --dump-config | grep token-plan-compare
 
 ```
 dsh-token-plan-compare/
-├── package.json          # 包声明 + dsh.bundle 配置
+├── package.json          # 包声明 + dsh.bundle/dsh.bundles 配置
 ├── cordis.patch.yml      # Cordis 配置补丁
+├── build.mjs             # 客户端 UI 构建脚本（esbuild）
 ├── tsconfig.json         # TypeScript 配置
 ├── src/
-│   ├── index.ts          # 插件入口，注册 3 个工具
+│   ├── index.ts          # Host 侧入口：注册 3 个 Agent 工具
+│   ├── client.ts         # Client 侧入口：侧边栏可视化 UI
+│   ├── shims.d.ts        # DSH 运行时类型声明
 │   ├── data/
 │   │   └── plans.ts      # 各家套餐数据
 │   └── utils/
 │       └── compare.ts    # 性价比计算逻辑
-├── lib/                  # tsc 构建产物（安装免构建）
+├── lib/                  # 构建产物（host: index.js, client: client.js）
+├── scripts/
+│   └── verify.mjs        # 21 项验证测试
 └── README.md
 ```
 
@@ -97,10 +111,13 @@ dsh-token-plan-compare/
 
 ```bash
 npm install
-npm run build
+npm run build          # 同时构建 host (tsc) 和 client (esbuild)
+npm run build:host     # 仅构建 host 侧
+npm run build:client   # 仅构建 client 侧
+npm test               # 运行 21 项验证测试
 ```
 
-构建产物在 `lib/` 目录，需随包一起发布。
+构建产物在 `lib/` 目录（`index.js` + `client.js`），需随包一起发布。
 
 ## 更新数据
 

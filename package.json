@@ -13,8 +13,10 @@
     "node": "^22.19 || >=24"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "node --test lib/*.test.js"
+    "build": "tsc -p tsconfig.json && node build.mjs",
+    "build:host": "tsc -p tsconfig.json",
+    "build:client": "node build.mjs",
+    "test": "node scripts/verify.mjs"
   },
   "keywords": [
     "dsh-plugin",
@@ -32,11 +34,16 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "bundles": {
+      "host": "./lib/index.js",
+      "client": "./lib/client.js"
     }
   }
 }
