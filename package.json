@@ -40,10 +40,6 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
-    },
-    "bundles": {
-      "host": "./lib/index.js",
-      "client": "./lib/client.js"
     }
   }
 }
