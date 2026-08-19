@@ -1,0 +1,42 @@
+{
+  "name": "dsh-token-plan-compare",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness 插件：对比各家大模型 API / 订阅套餐的 token 性价比，帮你找到最划算的选择",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "engines": {
+    "node": "^22.19 || >=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test lib/*.test.js"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "token",
+    "pricing",
+    "llm",
+    "cost"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
