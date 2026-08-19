@@ -15,6 +15,7 @@ import {
 } from './utils/compare.js';
 
 export const name = 'token-plan-compare';
+export const inject = ['tools'];
 
 export const Config = z.object({
   /** 是否启用插件 */

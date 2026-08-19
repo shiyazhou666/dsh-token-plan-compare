@@ -1,3 +1,4 @@
 - insert:
     - id: token-plan-compare
       name: 'dsh-token-plan-compare'
+      inject: [tools]

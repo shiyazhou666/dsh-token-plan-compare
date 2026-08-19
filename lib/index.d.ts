@@ -4,6 +4,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 export declare const name = "token-plan-compare";
+export declare const inject: string[];
 export declare const Config: any;
 export type TokenPlanCompareConfig = {
     enabled: boolean;
